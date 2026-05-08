@@ -1,6 +1,6 @@
 {
   "name": "pi-yandex-bridge",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Pi Coding Agent provider bridge for Yandex Cloud AI (YandexGPT)",
   "main": "./dist/index.js",
   "type": "module",
@@ -30,5 +30,13 @@
     "@earendil-works/pi-ai": "latest",
     "typescript": "^5"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/unitdhda/pi-yandex-bridge"
+  },
+  "bugs": {
+    "url": "https://github.com/unitdhda/pi-yandex-bridge/issues"
+  },
+  "homepage": "https://github.com/unitdhda/pi-yandex-bridge#readme"
 }

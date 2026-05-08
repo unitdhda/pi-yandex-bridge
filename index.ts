@@ -386,8 +386,10 @@ export default async function (pi: ExtensionAPI) {
 				login: yandexLogin,
 				refreshToken: yandexRefreshToken,
 				getApiKey: (credentials) => credentials.access,
-				modifyModels: (_, credentials) =>
-					buildModels(credentials.folderId as string),
+				modifyModels: (models, credentials) => [
+					...models.filter((m) => m.provider !== "yandex"),
+					...buildModels(credentials.folderId as string),
+				],
 			},
 		} satisfies ProviderConfig);
 	}

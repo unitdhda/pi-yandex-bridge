@@ -1,0 +1,160 @@
+{
+  "meta": {
+    "timestamp": "2026-05-08T21:36:15.317Z",
+    "project": "pi-yandex-bridge",
+    "path": "/Users/unitf90/pi-yandex-bridge",
+    "totalIssues": 12,
+    "fixableCount": 11,
+    "refactorNeeded": 1,
+    "runners": [
+      {
+        "name": "ast-grep (design smells)",
+        "status": "done",
+        "findings": 0,
+        "time": "23ms"
+      },
+      {
+        "name": "ast-grep (similar functions)",
+        "status": "done",
+        "findings": 0,
+        "time": "16ms"
+      },
+      {
+        "name": "semantic similarity (Amain)",
+        "status": "done",
+        "findings": 0,
+        "time": "18ms"
+      },
+      {
+        "name": "complexity metrics",
+        "status": "done",
+        "findings": 1,
+        "time": "8ms"
+      },
+      {
+        "name": "tree-sitter patterns",
+        "status": "done",
+        "findings": 0,
+        "time": "1ms"
+      },
+      {
+        "name": "fact rules",
+        "status": "done",
+        "findings": 1,
+        "time": "79ms"
+      },
+      {
+        "name": "TODO scanner",
+        "status": "done",
+        "findings": 0,
+        "time": "2ms"
+      },
+      {
+        "name": "dead code (Knip)",
+        "status": "done",
+        "findings": 2,
+        "time": "291ms"
+      },
+      {
+        "name": "duplicate code (jscpd)",
+        "status": "done",
+        "findings": 0,
+        "time": "480ms"
+      },
+      {
+        "name": "type coverage",
+        "status": "done",
+        "findings": 1,
+        "time": "5.3s"
+      },
+      {
+        "name": "circular deps (Madge)",
+        "status": "done",
+        "findings": 0,
+        "time": "1.8s"
+      },
+      {
+        "name": "production readiness",
+        "status": "done",
+        "findings": 7,
+        "time": "4ms"
+      },
+      {
+        "name": "compiler checks",
+        "status": "done",
+        "findings": 0,
+        "time": "1.6s"
+      }
+    ],
+    "totalTime": "9.6s"
+  },
+  "project": {
+    "type": "node",
+    "name": "pi-yandex-bridge",
+    "version": "0.1.0",
+    "packageManager": "bun",
+    "languages": [
+      "javascript",
+      "typescript"
+    ],
+    "hasTests": false,
+    "hasLinting": false,
+    "hasFormatting": false,
+    "hasTypeScript": true,
+    "configFiles": [
+      "package.json",
+      "tsconfig.json"
+    ],
+    "scripts": {
+      "build": "tsc"
+    }
+  },
+  "commands": [
+    {
+      "action": "build",
+      "command": "bun run build"
+    }
+  ],
+  "byCategory": {
+    "AI Slop": {
+      "count": 1,
+      "severity": "🟡",
+      "fixable": true,
+      "falsePositivePrefix": "ai-slop:"
+    },
+    "Fact Rules": {
+      "count": 1,
+      "severity": "🟡",
+      "fixable": true,
+      "falsePositivePrefix": "fact-rules:"
+    },
+    "Dead Code": {
+      "count": 2,
+      "severity": "🟡",
+      "fixable": true,
+      "falsePositivePrefix": "dead-code:"
+    },
+    "Type Coverage": {
+      "count": 1,
+      "severity": "ℹ️",
+      "fixable": false,
+      "falsePositivePrefix": "type-coverage:"
+    },
+    "Production Readiness": {
+      "count": 7,
+      "severity": "🟡",
+      "fixable": true,
+      "falsePositivePrefix": "production-readiness:"
+    }
+  },
+  "howToMarkFalsePositive": {
+    "command": "Ignore via AGENTS.md rules or suppress comments",
+    "format": "Add to .claude/rules or use biome/oxlint ignore comments",
+    "examples": [
+      "// biome-ignore lint/suspicious/noConsole: intentional debug",
+      "// oxlint-disable-next-line no-console"
+    ]
+  },
+  "sessionFile": "/Users/unitf90/pi-yandex-bridge/.pi-lens/fix-session.json",
+  "details": "## Complexity Metrics\n\n**1 file(s) scanned**\n\n### Summary\n\n| Metric | Value |\n|--------|-------|\n| Avg Maintainability Index | 22.8 |\n| Min Maintainability Index | 22.8 |\n| Avg Cognitive Complexity | 67.0 |\n| Max Cognitive Complexity | 67 |\n| Avg Cyclomatic Complexity | 2.0 |\n| Max Nesting Depth | 6 |\n| Total Files | 1 |\n\n### AI Slop Indicators\n\n  index.ts:\n    ⚠ Maintainability dropped to 22.8 — extract logic into helper functions\n    ⚠ Cognitive complexity (67) — simplify logic flow\n\n\n## Fact Rules (Semantic Analysis)\n\n**1 issue(s) across 1 rule(s)**\n\n### 🟡 unsafe-boundary (1)\n\n'<anonymous>' is async, calls 'fetch', has complexity 11, but no try/catch — unhandled rejection risk\n\n| File | Line |\n|------|------|\n| index.ts | 308 |\n\n\n## Dead Code (Knip)\n\n**2 issue(s) found**\n\n| Type | Name | File |\n|------|------|------|\n| file | dist/index.d.ts | dist/index.d.ts |\n| unlisted | @earendil-works/pi-ai | index.ts |\n\n\n## Type Coverage\n\n**99.0% typed** (519/524 identifiers)\n\nType coverage highlights identifiers that resolve to `any` (implicit or explicit). Inferred non-`any` types are treated as typed.\n\n### Top Files by Any-Typed Identifier Count\n\n| File | Any-Typed Count |\n|------|-----------------|\n| /Users/unitf90/pi-yandex-bridge/index.ts | 5 |\n\n\n## Production Readiness\n\n**Score:** 74/100 **Grade:** C\n\n### Code (96/100)\n\n- 1 source files\n- 406 total lines\n- ⚠️ 2 console.log/debug statements\n\n### Tests (25/100)\n\n- 0 test files\n- 0 test cases (approximate)\n- ⚠️ No test files found\n- ⚠️ No test framework configuration detected\n\n### Docs (50/100)\n\n- Found: README\n- Missing: LICENSE (or LICENSE.md), CHANGELOG\n- ⚠️ package.json missing description or author\n- ⚠️ No LICENSE file found\n- ⚠️ No CHANGELOG.md found (recommended)\n\n### Config (100/100)\n\n- Config files: .gitignore, tsconfig.json, package.json\n- ⚠️ .gitignore does not exclude node_modules\n\n### Deploy (100/100)\n\n- Git repository initialized\n- Version: 0.1.0\n- Build script defined\n- Entry: ./dist/index.js\n\n"
+}

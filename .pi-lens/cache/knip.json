@@ -1,0 +1,21 @@
+{
+  "success": true,
+  "issues": [
+    {
+      "type": "file",
+      "name": "dist/index.d.ts",
+      "file": "dist/index.d.ts"
+    }
+  ],
+  "unusedExports": [],
+  "unusedFiles": [
+    {
+      "type": "file",
+      "name": "dist/index.d.ts",
+      "file": "dist/index.d.ts"
+    }
+  ],
+  "unusedDeps": [],
+  "unlistedDeps": [],
+  "summary": "Found 1 issues"
+}

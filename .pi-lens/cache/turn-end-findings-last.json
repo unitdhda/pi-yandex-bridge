@@ -1,0 +1,4 @@
+{
+  "signature": "index.ts::🔴 New unresolved imports/deps in modified code (Knip):\n  index.ts:29 — unlisted: @earendil-works/pi-ai\n  First location: index.ts\n",
+  "sessionId": "lens-moxfkr7l-92597cdf"
+}

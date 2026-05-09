@@ -32,7 +32,7 @@ import type {
 // ─── constants ────────────────────────────────────────────────────────────────
 
 const IAM_TOKEN_URL = "https://iam.api.cloud.yandex.net/iam/v1/tokens";
-const AI_BASE_URL = "https://ai.api.cloud.yandex.net/v1";
+const AI_BASE_URL = "https://llm.api.cloud.yandex.net/v1";
 const AUTH_PATH = join(homedir(), ".pi", "agent", "auth.json");
 
 const OAUTH_CLIENT_ID = "0414b7213b22435fa65051f64270584f";
@@ -109,16 +109,17 @@ async function exchangeOAuthForIam(
 	};
 }
 
+// authHeader: 'Bearer <iam_token>' for OAuth, 'Api-Key <api_key>' for static key
 async function fetchModelIds(
 	folderId: string,
-	apiKey: string,
+	authHeader: string,
 ): Promise<string[]> {
 	const ac = new AbortController();
 	const timer = setTimeout(() => ac.abort(), 5_000);
 	try {
 		const res = await fetch(`${AI_BASE_URL}/models`, {
 			headers: {
-				Authorization: `Bearer ${apiKey}`,
+				Authorization: authHeader,
 				"OpenAI-Project": folderId,
 			},
 			signal: ac.signal,
@@ -234,7 +235,10 @@ async function yandexLogin(
 	const iam = await exchangeOAuthForIam(oauthToken);
 
 	// Fetch available models while we have fresh credentials.
-	const modelIds = await fetchModelIds(folderId as string, iam.token);
+	const modelIds = await fetchModelIds(
+		folderId as string,
+		`Bearer ${iam.token}`,
+	);
 
 	return {
 		refresh: oauthToken,
@@ -253,7 +257,7 @@ async function yandexRefreshToken(
 	// Re-fetch models on token refresh to pick up any new models.
 	const modelIds = await fetchModelIds(
 		credentials.folderId as string,
-		iam.token,
+		`Bearer ${iam.token}`,
 	);
 	return {
 		...credentials,
@@ -284,7 +288,7 @@ async function runYaLogin(ctx: ExtensionCommandContext) {
 		const iam = await exchangeOAuthForIam(oauthToken);
 
 		ctx.ui.notify("Fetching available models…", "info");
-		const modelIds = await fetchModelIds(folderId, iam.token);
+		const modelIds = await fetchModelIds(folderId, `Bearer ${iam.token}`);
 
 		const auth = readAuthJson();
 		auth.yandex = {
@@ -317,7 +321,7 @@ export default async function (pi: ExtensionAPI) {
 
 	if (apiKey && folderId) {
 		// Static API key — fetch models immediately, we have credentials.
-		const modelIds = await fetchModelIds(folderId, apiKey);
+		const modelIds = await fetchModelIds(folderId, `Api-Key ${apiKey}`);
 		pi.registerProvider("yandex", {
 			name: "Yandex Cloud",
 			baseUrl: AI_BASE_URL,

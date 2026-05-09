@@ -4,13 +4,19 @@ Pi Coding Agent provider bridge for Yandex Cloud AI (YandexGPT).
 
 ## Models
 
-| Model             | Context | Max output |
-| ----------------- | ------- | ---------- |
-| YandexGPT Pro 5.1 | 128k    | 8k         |
-| YandexGPT Pro     | 128k    | 8k         |
-| YandexGPT Lite    | 32k     | 4k         |
+All models available in your Yandex Cloud folder are fetched dynamically after authentication. Model names are displayed as `name{folder_last5/tag}` — e.g. `yandexgpt-5.1{cffev/l}`.
 
-Unknown models discovered via the API are displayed as `slug {last4ofFolderId}`.
+## Installation
+
+Add to `~/.pi/agent/settings.json`:
+
+```json
+{
+  "extensions": ["/path/to/pi-yandex-bridge/dist/index.js"]
+}
+```
+
+Then restart Pi and run `/yalogin`.
 
 ## Auth: OAuth (default)
 
@@ -20,9 +26,9 @@ In the [Yandex Cloud console](https://console.yandex.cloud), select your folder.
 
 ### 2. Log in
 
-Run `/yalogin` in Pi. A browser window will open automatically — authorize the app, and the token is captured without any pasting. Pi then prompts for your folder ID.
+Run `/yalogin` in Pi. A browser window opens automatically — authorize the app, and the token is captured without any pasting. Pi then prompts for your folder ID. Available models are fetched immediately after login.
 
-**IAM tokens expire after 12 hours** and are refreshed automatically using the stored OAuth token.
+**IAM tokens expire after 12 hours** and are refreshed automatically using the stored OAuth token. The model list is re-fetched on each refresh.
 
 To skip the browser flow, set env vars before starting Pi:
 
@@ -40,11 +46,4 @@ export YANDEX_API_KEY="your-api-key"
 export YANDEX_FOLDER_ID="your-folder-id"
 ```
 
-You can generate an API key in the Yandex Cloud console under **Service accounts → your account → API keys**. The key is shown only once, so copy it immediately.
-
-Env vars also work for OAuth to skip interactive prompts:
-
-```sh
-export YANDEX_OAUTH_TOKEN="y0_AgAAAA..."
-export YANDEX_FOLDER_ID="b1g..."
-```
+Models are fetched at startup using the API key. You can generate an API key in the [Yandex AI Studio](https://aistudio.yandex.ru) or in the Yandex Cloud console under **Service accounts → your account → API keys**.

@@ -5,6 +5,7 @@ Pi Coding Agent provider bridge for Yandex Cloud AI (YandexGPT).
 ## Models
 
 All models available in your Yandex Cloud folder are fetched dynamically after authentication. Supported models include:
+
 - **YandexGPT** (Pro 5.1, Pro 5, Lite) — with chain-of-thought reasoning
 - **DeepSeek V3.2** — with thinking mode
 - **Qwen3 series** (235B, 3.5-35B, 3.6-35B) — with reasoning
@@ -68,6 +69,7 @@ bun test
 ```
 
 Tests cover:
+
 - Model ID parsing from Yandex API response
 - OAuth → IAM token exchange
 - Header construction (Bearer tokens vs. API keys)
@@ -87,6 +89,7 @@ YANDEX_API_KEY="<key>" YANDEX_FOLDER_ID="<id>" bun run verify.ts
 ```
 
 The verification script:
+
 1. Tests IAM token exchange (OAuth only)
 2. Fetches the list of available models
 3. Tests connectivity to the model API endpoint

@@ -4,15 +4,26 @@ Pi Coding Agent provider bridge for Yandex Cloud AI (YandexGPT).
 
 ## Models
 
-All models available in your Yandex Cloud folder are fetched dynamically after authentication.
+All models available in your Yandex Cloud folder are fetched dynamically after authentication. Supported models include:
+- **YandexGPT** (Pro 5.1, Pro 5, Lite) — with chain-of-thought reasoning
+- **DeepSeek V3.2** — with thinking mode
+- **Qwen3 series** (235B, 3.5-35B, 3.6-35B) — with reasoning
+- **GPT-OSS** (120B, 20B) — with reasoning capability
+- Other models like Alice AI LLM, Gemma 3, embedding models, and speech models
 
 ## Installation
 
-Add to `~/.pi/agent/settings.json`:
+Install from npm:
+
+```sh
+npm install pi-yandex-bridge
+```
+
+Or add directly to `~/.pi/agent/settings.json`:
 
 ```json
 {
-  "extensions": ["/path/to/pi-yandex-bridge/dist/index.js"]
+  "extensions": ["pi-yandex-bridge"]
 }
 ```
 

@@ -4,7 +4,7 @@ Pi Coding Agent provider bridge for Yandex Cloud AI (YandexGPT).
 
 ## Models
 
-All models available in your Yandex Cloud folder are fetched dynamically after authentication. Model names are displayed as `name{folder_last5/tag}` — e.g. `yandexgpt-5.1{cffev/l}`.
+All models available in your Yandex Cloud folder are fetched dynamically after authentication.
 
 ## Installation
 

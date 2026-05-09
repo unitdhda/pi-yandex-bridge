@@ -17,7 +17,7 @@ import { readFileSync, writeFileSync } from "fs";
 import { homedir } from "os";
 import { join } from "path";
 import { spawnSync } from "child_process";
-import type { AddressInfo } from "net";
+
 import type {
 	ExtensionAPI,
 	ExtensionCommandContext,
@@ -171,9 +171,7 @@ if (t) {
 </script>
 </body></html>`;
 
-function captureOAuthToken(
-	onProgress?: (msg: string) => void,
-): Promise<string> {
+function captureOAuthToken(): Promise<string> {
 	return new Promise((resolve, reject) => {
 		const server = createServer((req, res) => {
 			if (req.url?.startsWith("/callback")) {
@@ -215,9 +213,6 @@ function captureOAuthToken(
 		);
 
 		server.listen(OAUTH_CALLBACK_PORT, "127.0.0.1", () => {
-			onProgress?.(
-				`[yandex] Listening on port ${(server.address() as AddressInfo).port}. Opening browser…`,
-			);
 			openBrowser(OAUTH_URL);
 		});
 
@@ -340,6 +335,9 @@ export default async function (pi: ExtensionAPI) {
 			return {
 				id,
 				name: prettyModelName(id),
+				api: "openai-responses" as const,
+				provider: "yandex",
+				baseUrl: AI_BASE_URL,
 				reasoning: false,
 				input: ["text"] as ("text" | "image")[],
 				cost: known?.cost ?? {
@@ -386,10 +384,8 @@ export default async function (pi: ExtensionAPI) {
 				login: yandexLogin,
 				refreshToken: yandexRefreshToken,
 				getApiKey: (credentials) => credentials.access,
-				modifyModels: (models, credentials) => [
-					...models.filter((m) => m.provider !== "yandex"),
-					...buildModels(credentials.folderId as string),
-				],
+				modifyModels: (_, credentials) =>
+					buildModels(credentials.folderId as string),
 			},
 		} satisfies ProviderConfig);
 	}

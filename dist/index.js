@@ -133,7 +133,7 @@ if (t) {
 }
 </script>
 </body></html>`;
-function captureOAuthToken(onProgress) {
+function captureOAuthToken() {
     return new Promise((resolve, reject) => {
         const server = createServer((req, res) => {
             if (req.url?.startsWith("/callback")) {
@@ -168,7 +168,6 @@ function captureOAuthToken(onProgress) {
             reject(new Error("OAuth authorization timed out after 5 minutes."));
         }, 5 * 60 * 1000);
         server.listen(OAUTH_CALLBACK_PORT, "127.0.0.1", () => {
-            onProgress?.(`[yandex] Listening on port ${server.address().port}. Opening browser…`);
             openBrowser(OAUTH_URL);
         });
         server.on("close", () => clearTimeout(timeout));
@@ -263,6 +262,9 @@ export default async function (pi) {
             return {
                 id,
                 name: prettyModelName(id),
+                api: "openai-responses",
+                provider: "yandex",
+                baseUrl: AI_BASE_URL,
                 reasoning: false,
                 input: ["text"],
                 cost: known?.cost ?? {
@@ -309,10 +311,7 @@ export default async function (pi) {
                 login: yandexLogin,
                 refreshToken: yandexRefreshToken,
                 getApiKey: (credentials) => credentials.access,
-                modifyModels: (models, credentials) => [
-                    ...models.filter((m) => m.provider !== "yandex"),
-                    ...buildModels(credentials.folderId),
-                ],
+                modifyModels: (_, credentials) => buildModels(credentials.folderId),
             },
         });
     }

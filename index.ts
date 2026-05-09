@@ -32,7 +32,8 @@ import type {
 // ─── constants ────────────────────────────────────────────────────────────────
 
 const IAM_TOKEN_URL = "https://iam.api.cloud.yandex.net/iam/v1/tokens";
-const AI_BASE_URL = "https://llm.api.cloud.yandex.net/v1";
+const AI_FETCH_URL = "https://llm.api.cloud.yandex.net/v1";
+const AI_BASE_URL = "https://ai.api.cloud.yandex.net/v1";
 const AUTH_PATH = join(homedir(), ".pi", "agent", "auth.json");
 
 const OAUTH_CLIENT_ID = "0414b7213b22435fa65051f64270584f";
@@ -55,8 +56,8 @@ function prettyModelName(id: string): string {
 	const match = id.match(/^gpt:\/\/([^/]+)\/(.+?)(?:(\/latest))?$/);
 	if (!match) return id;
 	const [, folderId, slug, hasLatest] = match;
-	const tag = hasLatest ? "l" : "";
-	return `${slug}{${folderId.slice(-5)}${tag ? "/" + tag : ""}}`;
+	const tag = hasLatest ? "/l" : "";
+	return `${slug}{${folderId.slice(-5)}${tag}}`;
 }
 
 function modelEntry(id: string, folderId: string) {
@@ -66,7 +67,7 @@ function modelEntry(id: string, folderId: string) {
 		api: "openai-responses" as const,
 		provider: "yandex",
 		baseUrl: AI_BASE_URL,
-		reasoning: false,
+		reasoning: true,
 		input: ["text"] as ("text" | "image")[],
 		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
 		contextWindow: 128_000,
@@ -117,7 +118,7 @@ async function fetchModelIds(
 	const ac = new AbortController();
 	const timer = setTimeout(() => ac.abort(), 5_000);
 	try {
-		const res = await fetch(`${AI_BASE_URL}/models`, {
+		const res = await fetch(`${AI_FETCH_URL}/models`, {
 			headers: {
 				Authorization: authHeader,
 				"OpenAI-Project": folderId,

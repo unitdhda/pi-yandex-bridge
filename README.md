@@ -47,3 +47,44 @@ export YANDEX_FOLDER_ID="your-folder-id"
 ```
 
 Models are fetched at startup using the API key. You can generate an API key in the [Yandex AI Studio](https://aistudio.yandex.ru) or in the Yandex Cloud console under **Service accounts → your account → API keys**.
+
+## Development & Testing
+
+### Run tests
+
+```sh
+bun test
+```
+
+Tests cover:
+- Model ID parsing from Yandex API response
+- OAuth → IAM token exchange
+- Header construction (Bearer tokens vs. API keys)
+- Error handling and timeouts
+- Model entry structure validation
+
+### Manual API verification
+
+Before releasing, verify that the Yandex API is accessible and models are being fetched correctly:
+
+```sh
+# OAuth flow
+YANDEX_OAUTH_TOKEN="<token>" YANDEX_FOLDER_ID="<id>" bun run verify.ts
+
+# API key flow
+YANDEX_API_KEY="<key>" YANDEX_FOLDER_ID="<id>" bun run verify.ts
+```
+
+The verification script:
+1. Tests IAM token exchange (OAuth only)
+2. Fetches the list of available models
+3. Tests connectivity to the model API endpoint
+4. Reports any 404 errors or misconfiguration
+
+### Build
+
+```sh
+bun run build
+```
+
+Outputs to `dist/index.js`.

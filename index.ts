@@ -51,19 +51,10 @@ interface IamTokenResponse {
 	expiresAt: string;
 }
 
-// Only applies to yandex gpt:// URIs — leaves all other model IDs untouched.
-function prettyModelName(id: string): string {
-	const match = id.match(/^gpt:\/\/([^/]+)\/(.+?)(?:(\/latest))?$/);
-	if (!match) return id;
-	const [, folderId, slug, hasLatest] = match;
-	const tag = hasLatest ? "/l" : "";
-	return `${slug}{${folderId.slice(-5)}${tag}}`;
-}
-
 function modelEntry(id: string, folderId: string) {
 	return {
 		id,
-		name: prettyModelName(id),
+		name: id,
 		api: "openai-responses" as const,
 		provider: "yandex",
 		baseUrl: AI_BASE_URL,
@@ -316,6 +307,8 @@ async function runYaLogin(ctx: ExtensionCommandContext) {
 
 // ─── extension entry point ────────────────────────────────────────────────────
 
+// Export for testing
+export { fetchModelIds, modelEntry, exchangeOAuthForIam };
 export default async function (pi: ExtensionAPI) {
 	const apiKey = process.env.YANDEX_API_KEY;
 	const folderId = process.env.YANDEX_FOLDER_ID;

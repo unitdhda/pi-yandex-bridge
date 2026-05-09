@@ -1,15 +1,19 @@
 {
   "name": "pi-yandex-bridge",
-  "version": "0.2.9",
+  "version": "0.3.0",
   "description": "Pi Coding Agent provider bridge for Yandex Cloud AI (YandexGPT)",
   "main": "./dist/index.js",
   "type": "module",
   "pi": {
-    "extensions": ["./dist/index.js"],
+    "extensions": [
+      "./dist/index.js"
+    ],
     "image": "https://upload.wikimedia.org/wikipedia/commons/5/5b/Yandex_cloud_logo_new.jpg"
   },
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "test": "bun test",
+    "verify": "bun run verify.ts"
   },
   "keywords": [
     "pi-package",
@@ -28,7 +32,8 @@
   "devDependencies": {
     "@earendil-works/pi-coding-agent": "latest",
     "@earendil-works/pi-ai": "latest",
-    "typescript": "^5"
+    "typescript": "^5",
+    "@types/bun": "latest"
   },
   "license": "MIT",
   "repository": {

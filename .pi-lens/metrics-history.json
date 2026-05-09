@@ -3,14 +3,14 @@
   "files": {
     "index.ts": {
       "latest": {
-        "commit": "59c36fb",
-        "timestamp": "2026-05-09T06:42:16.106Z",
-        "mi": 23.2,
-        "cognitive": 67,
+        "commit": "751fe42",
+        "timestamp": "2026-05-09T07:05:30.362Z",
+        "mi": 25.2,
+        "cognitive": 55,
         "nesting": 6,
-        "lines": 341,
+        "lines": 278,
         "maxCyclomatic": 11,
-        "entropy": 7.03
+        "entropy": 6.68
       },
       "history": [
         {
@@ -42,9 +42,19 @@
           "lines": 341,
           "maxCyclomatic": 11,
           "entropy": 7.03
+        },
+        {
+          "commit": "751fe42",
+          "timestamp": "2026-05-09T07:05:30.362Z",
+          "mi": 25.2,
+          "cognitive": 55,
+          "nesting": 6,
+          "lines": 278,
+          "maxCyclomatic": 11,
+          "entropy": 6.68
         }
       ],
-      "trend": "stable"
+      "trend": "improving"
     },
     "dist/index.js": {
       "latest": {
@@ -72,5 +82,5 @@
       "trend": "stable"
     }
   },
-  "capturedAt": "2026-05-09T06:42:21.107Z"
+  "capturedAt": "2026-05-09T07:05:35.370Z"
 }

@@ -26,41 +26,13 @@ const OAUTH_REDIRECT_URI = `http://localhost:${OAUTH_CALLBACK_PORT}/callback`;
 const OAUTH_URL = `https://oauth.yandex.ru/authorize?response_type=token` +
     `&client_id=${OAUTH_CLIENT_ID}` +
     `&redirect_uri=${encodeURIComponent(OAUTH_REDIRECT_URI)}`;
-// ─── model catalogue ──────────────────────────────────────────────────────────
-const KNOWN_MODELS = [
-    {
-        slug: "yandexgpt-5.1",
-        name: "YandexGPT Pro 5.1",
-        contextWindow: 128_000,
-        maxTokens: 8_192,
-        cost: { input: 8.8, output: 8.8, cacheRead: 0, cacheWrite: 0 },
-    },
-    {
-        slug: "yandexgpt",
-        name: "YandexGPT Pro",
-        contextWindow: 128_000,
-        maxTokens: 8_192,
-        cost: { input: 8.8, output: 8.8, cacheRead: 0, cacheWrite: 0 },
-    },
-    {
-        slug: "yandexgpt-lite",
-        name: "YandexGPT Lite",
-        contextWindow: 32_000,
-        maxTokens: 4_096,
-        cost: { input: 2.2, output: 2.2, cacheRead: 0, cacheWrite: 0 },
-    },
-];
-/** Turns `gpt://<folderId>/<slug>/latest` into a readable display name.
- *  Known slugs get their canonical name; unknown ones get `slug {last4ofFolderId}`. */
 function prettyModelName(id) {
-    const match = id.match(/^gpt:\/\/([^/]+)\/(.+?)(?:\/latest)?$/);
+    const match = id.match(/^gpt:\/\/([^/]+)\/(.+?)(?:(\/latest))?$/);
     if (!match)
         return id;
-    const [, folderId, slug] = match;
-    const known = KNOWN_MODELS.find((m) => m.slug === slug);
-    if (known)
-        return known.name;
-    return `${slug} {${folderId.slice(-4)}}`;
+    const [, folderId, slug, hasLatest] = match;
+    const tag = hasLatest ? "l" : "";
+    return `${slug}{${folderId.slice(-5)}${tag ? "/" + tag : ""}}`;
 }
 function openBrowser(url) {
     const cmd = process.platform === "win32"
@@ -86,25 +58,44 @@ async function exchangeOAuthForIam(oauthToken) {
         expiresAt: new Date(data.expiresAt).getTime(),
     };
 }
-function buildModels(folderId) {
-    return KNOWN_MODELS.map((m) => ({
-        id: `gpt://${folderId}/${m.slug}/latest`,
-        name: m.name,
-        api: "openai-responses",
-        provider: "yandex",
-        baseUrl: AI_BASE_URL,
-        reasoning: false,
-        input: ["text"],
-        cost: m.cost,
-        contextWindow: m.contextWindow,
-        maxTokens: m.maxTokens,
-        headers: { "OpenAI-Project": folderId },
-        compat: {
-            supportsDeveloperRole: false,
-            supportsReasoningEffort: false,
-            maxTokensField: "max_tokens",
-        },
-    }));
+async function fetchYandexModels(folderId, apiKey) {
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), 5_000);
+    try {
+        const res = await fetch(`${AI_BASE_URL}/models`, {
+            headers: {
+                Authorization: `Bearer ${apiKey}`,
+                "OpenAI-Project": folderId,
+            },
+            signal: ac.signal,
+        });
+        clearTimeout(timer);
+        if (!res.ok)
+            return [];
+        const payload = (await res.json());
+        return payload.data.map((m) => ({
+            id: m.id,
+            name: prettyModelName(m.id),
+            api: "openai-responses",
+            provider: "yandex",
+            baseUrl: AI_BASE_URL,
+            reasoning: false,
+            input: ["text"],
+            cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+            contextWindow: 128_000,
+            maxTokens: 8_192,
+            headers: { "OpenAI-Project": folderId },
+            compat: {
+                supportsDeveloperRole: false,
+                supportsReasoningEffort: false,
+                maxTokensField: "max_tokens",
+            },
+        }));
+    }
+    catch {
+        clearTimeout(timer);
+        return [];
+    }
 }
 function readAuthJson() {
     try {
@@ -192,7 +183,7 @@ async function yandexLogin(callbacks) {
         refresh: oauthToken,
         access: iam.token,
         expires: iam.expiresAt,
-        folderId,
+        folderId: folderId,
     };
 }
 async function yandexRefreshToken(credentials) {
@@ -233,56 +224,8 @@ async function runYaLogin(ctx) {
 export default async function (pi) {
     const apiKey = process.env.YANDEX_API_KEY;
     const folderId = process.env.YANDEX_FOLDER_ID;
-    // Static API key path — both env vars must be present.
     if (apiKey && folderId) {
-        const modelIds = new Set(KNOWN_MODELS.map((m) => `gpt://${folderId}/${m.slug}/latest`));
-        try {
-            const ac = new AbortController();
-            const timer = setTimeout(() => ac.abort(), 5_000);
-            const res = await fetch(`${AI_BASE_URL}/models`, {
-                headers: {
-                    Authorization: `Bearer ${apiKey}`,
-                    "OpenAI-Project": folderId,
-                },
-                signal: ac.signal,
-            });
-            clearTimeout(timer);
-            if (res.ok) {
-                const payload = (await res.json());
-                for (const { id } of payload.data)
-                    modelIds.add(id);
-            }
-        }
-        catch {
-            /* static list is enough */
-        }
-        const models = [...modelIds].map((id) => {
-            const slug = id.replace(/^gpt:\/\/[^/]+\//, "").replace(/\/latest$/, "");
-            const known = KNOWN_MODELS.find((m) => m.slug === slug);
-            return {
-                id,
-                name: prettyModelName(id),
-                api: "openai-responses",
-                provider: "yandex",
-                baseUrl: AI_BASE_URL,
-                reasoning: false,
-                input: ["text"],
-                cost: known?.cost ?? {
-                    input: 0,
-                    output: 0,
-                    cacheRead: 0,
-                    cacheWrite: 0,
-                },
-                contextWindow: known?.contextWindow ?? 128_000,
-                maxTokens: known?.maxTokens ?? 8_192,
-                headers: { "OpenAI-Project": folderId },
-                compat: {
-                    supportsDeveloperRole: false,
-                    supportsReasoningEffort: false,
-                    maxTokensField: "max_tokens",
-                },
-            };
-        });
+        const models = await fetchYandexModels(folderId, apiKey);
         pi.registerProvider("yandex", {
             name: "Yandex Cloud",
             baseUrl: AI_BASE_URL,
@@ -292,26 +235,16 @@ export default async function (pi) {
         });
     }
     else {
-        // OAuth path — seed models from auth.json if folderId is already stored.
-        let storedFolderId;
-        try {
-            const auth = readAuthJson();
-            storedFolderId = auth.yandex?.folderId;
-        }
-        catch {
-            /* auth.json absent or unreadable */
-        }
         pi.registerProvider("yandex", {
             name: "Yandex Cloud",
             baseUrl: AI_BASE_URL,
             api: "openai-responses",
-            models: storedFolderId ? buildModels(storedFolderId) : [],
+            models: [],
             oauth: {
                 name: "Yandex Cloud (OAuth)",
                 login: yandexLogin,
                 refreshToken: yandexRefreshToken,
                 getApiKey: (credentials) => credentials.access,
-                modifyModels: (_, credentials) => buildModels(credentials.folderId),
             },
         });
     }

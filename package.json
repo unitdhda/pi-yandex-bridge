@@ -1,6 +1,6 @@
 {
   "name": "pi-yandex-bridge",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "Pi Coding Agent provider bridge for Yandex Cloud AI (YandexGPT)",
   "main": "./dist/index.js",
   "type": "module",

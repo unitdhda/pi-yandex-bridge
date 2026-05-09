@@ -17,6 +17,7 @@ import { readFileSync, writeFileSync } from "fs";
 import { homedir } from "os";
 import { join } from "path";
 import { spawnSync } from "child_process";
+import type { AddressInfo } from "net";
 
 import type {
 	ExtensionAPI,
@@ -42,32 +43,6 @@ const OAUTH_URL =
 	`&client_id=${OAUTH_CLIENT_ID}` +
 	`&redirect_uri=${encodeURIComponent(OAUTH_REDIRECT_URI)}`;
 
-// ─── model catalogue ──────────────────────────────────────────────────────────
-
-const KNOWN_MODELS = [
-	{
-		slug: "yandexgpt-5.1",
-		name: "YandexGPT Pro 5.1",
-		contextWindow: 128_000,
-		maxTokens: 8_192,
-		cost: { input: 8.8, output: 8.8, cacheRead: 0, cacheWrite: 0 },
-	},
-	{
-		slug: "yandexgpt",
-		name: "YandexGPT Pro",
-		contextWindow: 128_000,
-		maxTokens: 8_192,
-		cost: { input: 8.8, output: 8.8, cacheRead: 0, cacheWrite: 0 },
-	},
-	{
-		slug: "yandexgpt-lite",
-		name: "YandexGPT Lite",
-		contextWindow: 32_000,
-		maxTokens: 4_096,
-		cost: { input: 2.2, output: 2.2, cacheRead: 0, cacheWrite: 0 },
-	},
-] as const;
-
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
 interface IamTokenResponse {
@@ -75,15 +50,34 @@ interface IamTokenResponse {
 	expiresAt: string;
 }
 
-/** Turns `gpt://<folderId>/<slug>/latest` into a readable display name.
- *  Known slugs get their canonical name; unknown ones get `slug {last4ofFolderId}`. */
+// Only applies to yandex gpt:// URIs — leaves all other model IDs untouched.
 function prettyModelName(id: string): string {
-	const match = id.match(/^gpt:\/\/([^/]+)\/(.+?)(?:\/latest)?$/);
+	const match = id.match(/^gpt:\/\/([^/]+)\/(.+?)(?:(\/latest))?$/);
 	if (!match) return id;
-	const [, folderId, slug] = match;
-	const known = KNOWN_MODELS.find((m) => m.slug === slug);
-	if (known) return known.name;
-	return `${slug} {${folderId.slice(-4)}}`;
+	const [, folderId, slug, hasLatest] = match;
+	const tag = hasLatest ? "l" : "";
+	return `${slug}{${folderId.slice(-5)}${tag ? "/" + tag : ""}}`;
+}
+
+function modelEntry(id: string, folderId: string) {
+	return {
+		id,
+		name: prettyModelName(id),
+		api: "openai-responses" as const,
+		provider: "yandex",
+		baseUrl: AI_BASE_URL,
+		reasoning: false,
+		input: ["text"] as ("text" | "image")[],
+		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+		contextWindow: 128_000,
+		maxTokens: 8_192,
+		headers: { "OpenAI-Project": folderId },
+		compat: {
+			supportsDeveloperRole: false,
+			supportsReasoningEffort: false,
+			maxTokensField: "max_tokens" as const,
+		},
+	};
 }
 
 function openBrowser(url: string) {
@@ -104,12 +98,10 @@ async function exchangeOAuthForIam(
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({ yandexPassportOauthToken: oauthToken }),
 	});
-
 	if (!res.ok) {
 		const text = await res.text().catch(() => res.statusText);
 		throw new Error(`IAM token exchange failed (${res.status}): ${text}`);
 	}
-
 	const data = (await res.json()) as IamTokenResponse;
 	return {
 		token: data.iamToken,
@@ -117,33 +109,30 @@ async function exchangeOAuthForIam(
 	};
 }
 
-function buildModels(folderId: string) {
-	return KNOWN_MODELS.map((m) => ({
-		id: `gpt://${folderId}/${m.slug}/latest`,
-		name: m.name,
-		api: "openai-responses" as const,
-		provider: "yandex",
-		baseUrl: AI_BASE_URL,
-		reasoning: false,
-		input: ["text"] as ("text" | "image")[],
-		cost: m.cost,
-		contextWindow: m.contextWindow,
-		maxTokens: m.maxTokens,
-		headers: { "OpenAI-Project": folderId },
-		compat: {
-			supportsDeveloperRole: false,
-			supportsReasoningEffort: false,
-			maxTokensField: "max_tokens" as const,
-		},
-	}));
+async function fetchModelIds(folderId: string, apiKey: string): Promise<string[]> {
+	const ac = new AbortController();
+	const timer = setTimeout(() => ac.abort(), 5_000);
+	try {
+		const res = await fetch(`${AI_BASE_URL}/models`, {
+			headers: {
+				Authorization: `Bearer ${apiKey}`,
+				"OpenAI-Project": folderId,
+			},
+			signal: ac.signal,
+		});
+		clearTimeout(timer);
+		if (!res.ok) return [];
+		const payload = (await res.json()) as { data: Array<{ id: string }> };
+		return payload.data.map((m) => m.id);
+	} catch {
+		clearTimeout(timer);
+		return [];
+	}
 }
 
 function readAuthJson(): Record<string, unknown> {
 	try {
-		return JSON.parse(readFileSync(AUTH_PATH, "utf8")) as Record<
-			string,
-			unknown
-		>;
+		return JSON.parse(readFileSync(AUTH_PATH, "utf8")) as Record<string, unknown>;
 	} catch {
 		return {};
 	}
@@ -194,25 +183,19 @@ function captureOAuthToken(): Promise<string> {
 
 		server.on("error", (err: NodeJS.ErrnoException) => {
 			if (err.code === "EADDRINUSE") {
-				reject(
-					new Error(
-						`Port ${OAUTH_CALLBACK_PORT} is already in use. Stop the process using it and try again.`,
-					),
-				);
+				reject(new Error(`Port ${OAUTH_CALLBACK_PORT} is already in use.`));
 			} else {
 				reject(new Error(`Local auth server error: ${err.message}`));
 			}
 		});
 
-		const timeout = setTimeout(
-			() => {
-				server.close();
-				reject(new Error("OAuth authorization timed out after 5 minutes."));
-			},
-			5 * 60 * 1000,
-		);
+		const timeout = setTimeout(() => {
+			server.close();
+			reject(new Error("OAuth authorization timed out after 5 minutes."));
+		}, 5 * 60 * 1000);
 
 		server.listen(OAUTH_CALLBACK_PORT, "127.0.0.1", () => {
+			void (server.address() as AddressInfo).port;
 			openBrowser(OAUTH_URL);
 		});
 
@@ -238,13 +221,19 @@ async function yandexLogin(
 			placeholder: "b1g...",
 		});
 	}
+
 	const iam = await exchangeOAuthForIam(oauthToken);
+
+	// Fetch available models while we have fresh credentials.
+	const modelIds = await fetchModelIds(folderId as string, iam.token);
 
 	return {
 		refresh: oauthToken,
 		access: iam.token,
 		expires: iam.expiresAt,
-		folderId,
+		folderId: folderId as string,
+		// Store fetched model IDs so modifyModels can stay synchronous.
+		modelIds: JSON.stringify(modelIds),
 	};
 }
 
@@ -252,7 +241,14 @@ async function yandexRefreshToken(
 	credentials: OAuthCredentials,
 ): Promise<OAuthCredentials> {
 	const iam = await exchangeOAuthForIam(credentials.refresh);
-	return { ...credentials, access: iam.token, expires: iam.expiresAt };
+	// Re-fetch models on token refresh to pick up any new models.
+	const modelIds = await fetchModelIds(credentials.folderId as string, iam.token);
+	return {
+		...credentials,
+		access: iam.token,
+		expires: iam.expiresAt,
+		modelIds: JSON.stringify(modelIds),
+	};
 }
 
 // ─── /yalogin command ─────────────────────────────────────────────────────────
@@ -260,7 +256,6 @@ async function yandexRefreshToken(
 async function runYaLogin(ctx: ExtensionCommandContext) {
 	try {
 		ctx.ui.notify("Opening browser for Yandex authorization…", "info");
-
 		const oauthToken = await captureOAuthToken();
 
 		let folderId = process.env.YANDEX_FOLDER_ID ?? "";
@@ -276,6 +271,9 @@ async function runYaLogin(ctx: ExtensionCommandContext) {
 		ctx.ui.notify("Exchanging OAuth token for IAM token…", "info");
 		const iam = await exchangeOAuthForIam(oauthToken);
 
+		ctx.ui.notify("Fetching available models…", "info");
+		const modelIds = await fetchModelIds(folderId, iam.token);
+
 		const auth = readAuthJson();
 		auth.yandex = {
 			type: "oauth",
@@ -283,11 +281,12 @@ async function runYaLogin(ctx: ExtensionCommandContext) {
 			access: iam.token,
 			expires: iam.expiresAt,
 			folderId,
+			modelIds: JSON.stringify(modelIds),
 		};
 		writeAuthJson(auth);
 
 		ctx.ui.notify(
-			"✓ Yandex credentials saved. Restart Pi to activate the models.",
+			`✓ Yandex credentials saved (${modelIds.length} models). Restart Pi to activate.`,
 			"info",
 		);
 	} catch (err) {
@@ -304,72 +303,29 @@ export default async function (pi: ExtensionAPI) {
 	const apiKey = process.env.YANDEX_API_KEY;
 	const folderId = process.env.YANDEX_FOLDER_ID;
 
-	// Static API key path — both env vars must be present.
 	if (apiKey && folderId) {
-		const modelIds = new Set(
-			KNOWN_MODELS.map((m) => `gpt://${folderId}/${m.slug}/latest`),
-		);
-
-		try {
-			const ac = new AbortController();
-			const timer = setTimeout(() => ac.abort(), 5_000);
-			const res = await fetch(`${AI_BASE_URL}/models`, {
-				headers: {
-					Authorization: `Bearer ${apiKey}`,
-					"OpenAI-Project": folderId,
-				},
-				signal: ac.signal,
-			});
-			clearTimeout(timer);
-			if (res.ok) {
-				const payload = (await res.json()) as { data: Array<{ id: string }> };
-				for (const { id } of payload.data) modelIds.add(id);
-			}
-		} catch {
-			/* static list is enough */
-		}
-
-		const models = [...modelIds].map((id) => {
-			const slug = id.replace(/^gpt:\/\/[^/]+\//, "").replace(/\/latest$/, "");
-			const known = KNOWN_MODELS.find((m) => m.slug === slug);
-			return {
-				id,
-				name: prettyModelName(id),
-				api: "openai-responses" as const,
-				provider: "yandex",
-				baseUrl: AI_BASE_URL,
-				reasoning: false,
-				input: ["text"] as ("text" | "image")[],
-				cost: known?.cost ?? {
-					input: 0,
-					output: 0,
-					cacheRead: 0,
-					cacheWrite: 0,
-				},
-				contextWindow: known?.contextWindow ?? 128_000,
-				maxTokens: known?.maxTokens ?? 8_192,
-				headers: { "OpenAI-Project": folderId },
-				compat: {
-					supportsDeveloperRole: false,
-					supportsReasoningEffort: false,
-					maxTokensField: "max_tokens" as const,
-				},
-			};
-		});
-
+		// Static API key — fetch models immediately, we have credentials.
+		const modelIds = await fetchModelIds(folderId, apiKey);
 		pi.registerProvider("yandex", {
 			name: "Yandex Cloud",
 			baseUrl: AI_BASE_URL,
 			apiKey,
 			api: "openai-responses",
-			models,
+			models: modelIds.map((id) => modelEntry(id, folderId)),
 		} satisfies ProviderConfig);
 	} else {
-		// OAuth path — seed models from auth.json if folderId is already stored.
-		let storedFolderId: string | undefined;
+		// OAuth path — seed from auth.json if credentials are already stored.
+		let seedModels: ReturnType<typeof modelEntry>[] = [];
 		try {
-			const auth = readAuthJson() as Record<string, { folderId?: string }>;
-			storedFolderId = auth.yandex?.folderId;
+			const auth = readAuthJson() as Record<string, {
+				folderId?: string;
+				modelIds?: string;
+			}>;
+			const stored = auth.yandex;
+			if (stored?.folderId && stored?.modelIds) {
+				const ids = JSON.parse(stored.modelIds) as string[];
+				seedModels = ids.map((id) => modelEntry(id, stored.folderId!));
+			}
 		} catch {
 			/* auth.json absent or unreadable */
 		}
@@ -378,14 +334,22 @@ export default async function (pi: ExtensionAPI) {
 			name: "Yandex Cloud",
 			baseUrl: AI_BASE_URL,
 			api: "openai-responses",
-			models: storedFolderId ? buildModels(storedFolderId) : [],
+			models: seedModels,
 			oauth: {
 				name: "Yandex Cloud (OAuth)",
 				login: yandexLogin,
 				refreshToken: yandexRefreshToken,
 				getApiKey: (credentials) => credentials.access,
-				modifyModels: (_, credentials) =>
-					buildModels(credentials.folderId as string),
+				modifyModels: (models, credentials) => {
+					const fId = credentials.folderId as string;
+					const ids: string[] = credentials.modelIds
+						? (JSON.parse(credentials.modelIds as string) as string[])
+						: [];
+					return [
+						...models.filter((m) => m.provider !== "yandex"),
+						...ids.map((id) => modelEntry(id, fId)),
+					];
+				},
 			},
 		} satisfies ProviderConfig);
 	}

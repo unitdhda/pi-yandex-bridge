@@ -58,14 +58,12 @@ describe("pi-yandex-bridge", () => {
 				text: async () => "{}",
 			};
 
-			global.fetch = mock(
-				async (_url: string, opts?: RequestInit) => {
-					if (opts?.headers) {
-						capturedHeaders = opts.headers as Record<string, string>;
-					}
-					return mockResponse;
+			global.fetch = mock(async (_url: string, opts?: RequestInit) => {
+				if (opts?.headers) {
+					capturedHeaders = opts.headers as Record<string, string>;
 				}
-			) as typeof fetch;
+				return mockResponse;
+			}) as typeof fetch;
 
 			const { fetchModelIds } = await import("./index.ts");
 			await fetchModelIds("b1g123", "Bearer token123");
@@ -83,14 +81,12 @@ describe("pi-yandex-bridge", () => {
 				text: async () => "{}",
 			};
 
-			global.fetch = mock(
-				async (_url: string, opts?: RequestInit) => {
-					if (opts?.headers) {
-						capturedHeaders = opts.headers as Record<string, string>;
-					}
-					return mockResponse;
+			global.fetch = mock(async (_url: string, opts?: RequestInit) => {
+				if (opts?.headers) {
+					capturedHeaders = opts.headers as Record<string, string>;
 				}
-			) as typeof fetch;
+				return mockResponse;
+			}) as typeof fetch;
 
 			const { fetchModelIds } = await import("./index.ts");
 			await fetchModelIds("b1g123", "Api-Key apikey123");
@@ -232,6 +228,47 @@ describe("pi-yandex-bridge", () => {
 			expect(capturedBody).toEqual({
 				yandexPassportOauthToken: "my_oauth_token",
 			});
+		});
+	});
+
+	describe("reasoning mode detection", () => {
+		it("should enable reasoning for YandexGPT models", async () => {
+			const { modelEntry } = await import("./index.ts");
+			const entry = modelEntry("gpt://b1g123/yandexgpt-5-pro/latest", "b1g123");
+			expect(entry.reasoning).toBe(true);
+		});
+
+		it("should enable reasoning for DeepSeek v3.2", async () => {
+			const { modelEntry } = await import("./index.ts");
+			const entry = modelEntry("gpt://b1g123/deepseek-v32/latest", "b1g123");
+			expect(entry.reasoning).toBe(true);
+		});
+
+		it("should enable reasoning for Qwen3 models", async () => {
+			const { modelEntry } = await import("./index.ts");
+			const entry = modelEntry(
+				"gpt://b1g123/qwen3-235b-a22b-fp8/latest",
+				"b1g123",
+			);
+			expect(entry.reasoning).toBe(true);
+		});
+
+		it("should enable reasoning for GPT-OSS models", async () => {
+			const { modelEntry } = await import("./index.ts");
+			const entry = modelEntry("gpt://b1g123/gpt-oss-120b/latest", "b1g123");
+			expect(entry.reasoning).toBe(true);
+		});
+
+		it("should disable reasoning for models without reasoning support", async () => {
+			const { modelEntry } = await import("./index.ts");
+			const entry = modelEntry("gpt://b1g123/aliceai-llm/latest", "b1g123");
+			expect(entry.reasoning).toBe(false);
+		});
+
+		it("should disable reasoning for embedding models", async () => {
+			const { modelEntry } = await import("./index.ts");
+			const entry = modelEntry("emb://b1g123/text-embeddings/latest", "b1g123");
+			expect(entry.reasoning).toBe(false);
 		});
 	});
 });

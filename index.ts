@@ -51,6 +51,40 @@ interface IamTokenResponse {
 	expiresAt: string;
 }
 
+// Model reasoning mode mapping based on Yandex Cloud capabilities
+const REASONING_MODELS = new Set([
+	// YandexGPT models with chain-of-thought reasoning
+	"yandexgpt",
+	"yandexgpt-lite",
+	"yandexgpt-5-lite",
+	"yandexgpt-lite",
+	"yandexgpt-5-pro",
+	// DeepSeek with thinking mode
+	"deepseek-v32",
+	// Qwen models with reasoning support
+	"qwen3-235b-a22b-fp8",
+	"qwen3.5-35b-a3b-fp8",
+	"qwen3.6-35b-a3b",
+	// GPT OSS models with reasoning
+	"gpt-oss-120b",
+	"gpt-oss-20b",
+]);
+
+function getReasoningMode(modelId: string): boolean {
+	// Model ID format: gpt://b1g123/model-name/latest or gpt://b1g123/model-name
+	// Extract model name: it's the last segment if no version, or second-to-last if version exists
+	const parts = modelId.split("/");
+	let modelName = "";
+	if (parts.length >= 4) {
+		// Has version suffix (gpt://b1g123/model-name/latest) → model-name is at parts[3]
+		modelName = parts[3];
+	} else if (parts.length === 3) {
+		// No version suffix (gpt://b1g123/model-name) → model-name is at parts[2]
+		modelName = parts[2];
+	}
+	return REASONING_MODELS.has(modelName);
+}
+
 function modelEntry(id: string, folderId: string) {
 	return {
 		id,
@@ -58,7 +92,7 @@ function modelEntry(id: string, folderId: string) {
 		api: "openai-responses" as const,
 		provider: "yandex",
 		baseUrl: AI_BASE_URL,
-		reasoning: true,
+		reasoning: getReasoningMode(id),
 		input: ["text"] as ("text" | "image")[],
 		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
 		contextWindow: 128_000,

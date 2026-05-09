@@ -109,7 +109,10 @@ async function exchangeOAuthForIam(
 	};
 }
 
-async function fetchModelIds(folderId: string, apiKey: string): Promise<string[]> {
+async function fetchModelIds(
+	folderId: string,
+	apiKey: string,
+): Promise<string[]> {
 	const ac = new AbortController();
 	const timer = setTimeout(() => ac.abort(), 5_000);
 	try {
@@ -132,7 +135,10 @@ async function fetchModelIds(folderId: string, apiKey: string): Promise<string[]
 
 function readAuthJson(): Record<string, unknown> {
 	try {
-		return JSON.parse(readFileSync(AUTH_PATH, "utf8")) as Record<string, unknown>;
+		return JSON.parse(readFileSync(AUTH_PATH, "utf8")) as Record<
+			string,
+			unknown
+		>;
 	} catch {
 		return {};
 	}
@@ -189,10 +195,13 @@ function captureOAuthToken(): Promise<string> {
 			}
 		});
 
-		const timeout = setTimeout(() => {
-			server.close();
-			reject(new Error("OAuth authorization timed out after 5 minutes."));
-		}, 5 * 60 * 1000);
+		const timeout = setTimeout(
+			() => {
+				server.close();
+				reject(new Error("OAuth authorization timed out after 5 minutes."));
+			},
+			5 * 60 * 1000,
+		);
 
 		server.listen(OAUTH_CALLBACK_PORT, "127.0.0.1", () => {
 			void (server.address() as AddressInfo).port;
@@ -242,7 +251,10 @@ async function yandexRefreshToken(
 ): Promise<OAuthCredentials> {
 	const iam = await exchangeOAuthForIam(credentials.refresh);
 	// Re-fetch models on token refresh to pick up any new models.
-	const modelIds = await fetchModelIds(credentials.folderId as string, iam.token);
+	const modelIds = await fetchModelIds(
+		credentials.folderId as string,
+		iam.token,
+	);
 	return {
 		...credentials,
 		access: iam.token,
@@ -317,10 +329,13 @@ export default async function (pi: ExtensionAPI) {
 		// OAuth path — seed from auth.json if credentials are already stored.
 		let seedModels: ReturnType<typeof modelEntry>[] = [];
 		try {
-			const auth = readAuthJson() as Record<string, {
-				folderId?: string;
-				modelIds?: string;
-			}>;
+			const auth = readAuthJson() as Record<
+				string,
+				{
+					folderId?: string;
+					modelIds?: string;
+				}
+			>;
 			const stored = auth.yandex;
 			if (stored?.folderId && stored?.modelIds) {
 				const ids = JSON.parse(stored.modelIds) as string[];

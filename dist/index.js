@@ -178,10 +178,8 @@ function captureOAuthToken(onProgress) {
 async function yandexLogin(callbacks) {
     let oauthToken = process.env.YANDEX_OAUTH_TOKEN ?? "";
     if (!oauthToken) {
-        oauthToken = await captureOAuthToken((msg) => callbacks.onProgress?.(msg));
-    }
-    else {
-        callbacks.onProgress?.("[yandex] Using YANDEX_OAUTH_TOKEN from environment.");
+        callbacks.onAuth({ url: OAUTH_URL });
+        oauthToken = await captureOAuthToken();
     }
     let folderId = process.env.YANDEX_FOLDER_ID ?? "";
     if (!folderId) {
@@ -190,7 +188,6 @@ async function yandexLogin(callbacks) {
             placeholder: "b1g...",
         });
     }
-    callbacks.onProgress?.("[yandex] Exchanging OAuth token for IAM token…");
     const iam = await exchangeOAuthForIam(oauthToken);
     return {
         refresh: oauthToken,
@@ -210,8 +207,7 @@ async function runYaLogin(ctx) {
         const oauthToken = await captureOAuthToken();
         let folderId = process.env.YANDEX_FOLDER_ID ?? "";
         if (!folderId) {
-            folderId =
-                (await ctx.ui.input("Yandex Cloud folder ID", "b1g...")) ?? "";
+            folderId = (await ctx.ui.input("Yandex Cloud folder ID", "b1g...")) ?? "";
         }
         if (!folderId) {
             ctx.ui.notify("Login cancelled: folder ID is required.", "error");
@@ -242,12 +238,16 @@ export default async function (pi) {
     if (apiKey && folderId) {
         const modelIds = new Set(KNOWN_MODELS.map((m) => `gpt://${folderId}/${m.slug}/latest`));
         try {
+            const ac = new AbortController();
+            const timer = setTimeout(() => ac.abort(), 5_000);
             const res = await fetch(`${AI_BASE_URL}/models`, {
                 headers: {
                     Authorization: `Bearer ${apiKey}`,
                     "OpenAI-Project": folderId,
                 },
+                signal: ac.signal,
             });
+            clearTimeout(timer);
             if (res.ok) {
                 const payload = (await res.json());
                 for (const { id } of payload.data)
@@ -265,7 +265,12 @@ export default async function (pi) {
                 name: prettyModelName(id),
                 reasoning: false,
                 input: ["text"],
-                cost: known?.cost ?? { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+                cost: known?.cost ?? {
+                    input: 0,
+                    output: 0,
+                    cacheRead: 0,
+                    cacheWrite: 0,
+                },
                 contextWindow: known?.contextWindow ?? 128_000,
                 maxTokens: known?.maxTokens ?? 8_192,
                 headers: { "OpenAI-Project": folderId },
@@ -283,7 +288,6 @@ export default async function (pi) {
             api: "openai-responses",
             models,
         });
-        console.log(`[yandex] Registered ${models.length} model(s) with static API key.`);
     }
     else {
         // OAuth path — seed models from auth.json if folderId is already stored.
@@ -305,10 +309,12 @@ export default async function (pi) {
                 login: yandexLogin,
                 refreshToken: yandexRefreshToken,
                 getApiKey: (credentials) => credentials.access,
-                modifyModels: (_, credentials) => buildModels(credentials.folderId),
+                modifyModels: (models, credentials) => [
+                    ...models.filter((m) => m.provider !== "yandex"),
+                    ...buildModels(credentials.folderId),
+                ],
             },
         });
-        console.log("[yandex] Registered with OAuth.");
     }
     pi.registerCommand("yalogin", {
         description: "Authorize Yandex Cloud (opens browser, no pasting required)",
